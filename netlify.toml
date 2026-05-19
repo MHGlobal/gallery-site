@@ -2,14 +2,11 @@
 
 [build]
   publish = "/"
+  # Netlify detecta automaticamente netlify/functions/
+  # Não requer npm install — usa apenas módulos nativos do Node.js
 
-# Redireciona todas as rotas para index.html (SPA fallback)
-# Necessário caso você adicione rotas no futuro
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-  conditions = {Role = ["admin"]}
+[functions]
+  directory = "netlify/functions"
 
 # Headers globais de segurança e CORS
 [[headers]]

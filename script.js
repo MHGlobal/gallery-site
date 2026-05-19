@@ -2,12 +2,20 @@
  * script.js — Lógica principal da galeria de imagens
  *
  * Responsável por:
- * - Carregar e renderizar álbuns a partir de albums.json
+ * - Carregar álbuns automaticamente via Netlify Function (sem editar JSON)
  * - Exibir grid de fotos ao abrir um álbum
  * - Modal fullscreen com download e cópia de URL
  * - Pesquisa e filtros
  * - Lazy loading de imagens
+ *
+ * Como funciona o auto-scan:
+ * Ao carregar, o frontend chama /.netlify/functions/list-albums
+ * que lê a pasta /albums/ no servidor e devolve a estrutura completa.
+ * Basta fazer push de uma nova imagem para ela aparecer automaticamente.
  */
+
+// ── Endpoint da função serverless ─────────────────────────────
+const ALBUMS_API = "/.netlify/functions/list-albums";
 
 // ── Estado global ─────────────────────────────────────────────
 let allAlbums = [];
@@ -17,24 +25,59 @@ let currentImageIndex = 0;
 // ── Carregamento dos álbuns ───────────────────────────────────
 
 /**
- * Carrega o arquivo data/albums.json e inicializa a galeria.
+ * Busca a lista de álbuns na Netlify Function e inicializa a galeria.
+ * Não requer edição manual de nenhum arquivo — tudo é automático.
  */
 async function initGallery() {
   try {
     showHomeLoading(true);
-    const res = await fetch("data/albums.json");
-    if (!res.ok) throw new Error(`Erro ao carregar álbuns: ${res.status}`);
+
+    const res = await fetch(ALBUMS_API);
+
+    if (!res.ok) {
+      // Se a função não existe (ex: dev local sem Netlify CLI),
+      // cai no fallback para albums.json
+      throw new Error(`api:${res.status}`);
+    }
 
     allAlbums = await res.json();
-
     renderHomeView(allAlbums);
     attachSearchListeners();
+
   } catch (err) {
-    console.error(err);
-    showHomeError("Não foi possível carregar os álbuns. Verifique o arquivo data/albums.json.");
+    // ── Fallback: tenta albums.json estático ──────────────────
+    // Útil durante desenvolvimento local sem Netlify CLI
+    if (err.message.startsWith("api:") || err.name === "TypeError") {
+      console.warn("[gallery] Netlify Function indisponível — usando fallback albums.json");
+      try {
+        const fallback = await fetch("data/albums.json");
+        if (!fallback.ok) throw new Error("json:404");
+        allAlbums = await fallback.json();
+        renderHomeView(allAlbums);
+        attachSearchListeners();
+        showFallbackBanner();
+        return;
+      } catch {
+        /* segue para o erro abaixo */
+      }
+    }
+
+    console.error("[gallery] Erro ao carregar álbuns:", err);
+    showHomeError(
+      "Não foi possível carregar os álbuns. " +
+      "Verifique se o deploy foi feito no Netlify ou se o Netlify CLI está rodando localmente."
+    );
   } finally {
     showHomeLoading(false);
   }
+}
+
+/**
+ * Exibe um aviso discreto quando está usando o fallback local.
+ */
+function showFallbackBanner() {
+  const banner = document.getElementById("fallback-banner");
+  if (banner) banner.style.display = "flex";
 }
 
 // ── Home: lista de álbuns ─────────────────────────────────────
@@ -260,7 +303,8 @@ function applyFilters() {
   if (sort === "name") {
     filtered.sort((a, b) => a.name.localeCompare(b.name));
   } else if (sort === "recent") {
-    filtered.reverse(); // Assumindo que albums.json está em ordem cronológica
+    // updatedAt vem da Netlify Function (mtime da pasta)
+    filtered.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   } else if (sort === "count") {
     filtered.sort((a, b) => (b.images?.length || 0) - (a.images?.length || 0));
   }

@@ -133,6 +133,12 @@
           <p>Clique em um álbum para visualizar as fotos.</p>
         </div>
 
+        <!-- Aviso de fallback (desenvolvimento local) -->
+        <div id="fallback-banner" style="display:none; align-items:center; gap:10px; background:rgba(200,169,110,0.08); border:1px solid rgba(200,169,110,0.2); border-radius:10px; padding:12px 16px; margin-bottom:20px; font-size:0.8rem; color:#c8a96e;">
+          <span>⚠</span>
+          <span>Modo offline — usando <code>albums.json</code> estático. Novas imagens não aparecem automaticamente até o deploy no Netlify.</span>
+        </div>
+
         <!-- Estado de carregamento -->
         <div id="loading-state">
           <div class="spinner"></div>

@@ -1,6 +1,197 @@
 # 📸 Galeria Privada
 
 Galeria de imagens privada com proteção por código de acesso.
+Hospedada no Netlify com **auto-detecção de imagens** — sem precisar editar nenhum arquivo JSON.
+
+---
+
+## ✨ Como funciona o auto-scan
+
+Uma **Netlify Function** (serverless Node.js) lê automaticamente a pasta `/albums/` a cada requisição e devolve todos os álbuns e imagens encontrados.
+
+**Fluxo completo:**
+```
+Você faz push de uma foto → Netlify faz deploy → a foto aparece na galeria
+```
+
+Não é necessário editar `albums.json`, não é necessário rodar nenhum script.
+
+---
+
+## ⚠️ Aviso de Segurança Importante
+
+> **Este sistema NÃO oferece segurança real.**
+>
+> - A senha (`ACCESS_CODE`) fica visível no código-fonte JavaScript.
+> - As imagens são **publicamente acessíveis** via URL direta, mesmo com o site "protegido".
+> - Esta proteção é adequada apenas para uso pessoal básico.
+
+---
+
+## 🚀 Como fazer o deploy
+
+### 1. GitHub
+
+```bash
+git init
+git add .
+git commit -m "Initial upload"
+git branch -M main
+git remote add origin https://github.com/SEU_USUARIO/SEU_REPOSITORIO.git
+git push -u origin main
+```
+
+### 2. Netlify
+
+1. Acesse [netlify.com](https://netlify.com) e faça login.
+2. Clique em **"Add new site" → "Import an existing project"**.
+3. Escolha **GitHub** e selecione seu repositório.
+4. Deixe as configurações padrão (o `netlify.toml` configura tudo automaticamente).
+5. Clique em **"Deploy site"**.
+
+---
+
+## 📸 Como adicionar novas imagens (100% automático)
+
+### Opção 1 — Adicionar a um álbum existente
+
+Coloque o arquivo de imagem dentro da pasta do álbum:
+
+```
+albums/casamento/nova-foto.jpg
+```
+
+Faça o push:
+
+```bash
+git add albums/casamento/nova-foto.jpg
+git commit -m "Adicionar foto ao álbum casamento"
+git push
+```
+
+**A imagem aparece automaticamente.** Nenhum outro arquivo precisa ser alterado.
+
+---
+
+### Opção 2 — Criar um álbum novo
+
+Crie uma pasta com o nome do álbum e adicione as imagens:
+
+```
+albums/
+└── minha-viagem/
+    ├── dia1.jpg
+    ├── dia2.jpg
+    └── dia3.jpg
+```
+
+O nome exibido na interface é gerado automaticamente a partir do nome da pasta:
+- `minha-viagem` → **"Minha Viagem"**
+- `festa_2025` → **"Festa 2025"**
+- `evento-empresa` → **"Evento Empresa"**
+
+Faça o push:
+
+```bash
+git add albums/minha-viagem/
+git commit -m "Novo álbum: Minha Viagem"
+git push
+```
+
+**O álbum aparece automaticamente na galeria.**
+
+---
+
+### Formatos de imagem aceitos
+
+`.jpg` · `.jpeg` · `.png` · `.webp` · `.gif` · `.avif`
+
+---
+
+## 🔑 Como alterar a senha
+
+Abra `auth.js` e edite:
+
+```js
+const ACCESS_CODE = "RS2026";
+```
+
+```bash
+git add auth.js
+git commit -m "Alterar senha"
+git push
+```
+
+---
+
+## 🗃️ Estrutura do Projeto
+
+```
+gallery-site/
+│
+├── index.html                    # Página principal
+├── style.css                     # Estilos
+├── script.js                     # Lógica da galeria
+├── auth.js                       # Autenticação
+├── netlify.toml                  # Configuração Netlify
+├── README.md
+│
+├── netlify/
+│   └── functions/
+│       └── list-albums.js        # ← Auto-scan das pastas
+│
+├── albums/                       # ← Suas imagens ficam aqui
+│   ├── casamento/
+│   ├── evento/
+│   └── viagem/
+│
+├── data/
+│   └── albums.json               # Fallback para dev local
+│
+└── assets/
+    ├── favicon.svg
+    └── placeholder.svg
+```
+
+---
+
+## 💻 Desenvolvimento local
+
+Para testar localmente com o auto-scan funcionando, instale o [Netlify CLI](https://docs.netlify.com/cli/get-started/):
+
+```bash
+npm install -g netlify-cli
+netlify dev
+```
+
+Sem o CLI, o site usa automaticamente `data/albums.json` como fallback e exibe um aviso na interface.
+
+---
+
+## 🔗 URLs públicas das imagens
+
+Cada imagem tem uma URL pública no formato:
+
+```
+https://SEU-SITE.netlify.app/albums/PASTA/ARQUIVO.jpg
+```
+
+Copie diretamente no modal da imagem clicando em **"Copiar URL"**.
+
+> ⚠️ Essas URLs são públicas — qualquer pessoa com o link pode acessar a imagem **sem a senha**.
+
+---
+
+## 🎨 Recursos
+
+- Login por código com sessão de 8 horas
+- Auto-detecção de álbuns e imagens via Netlify Function
+- Pesquisa e filtros (A–Z, recentes, mais fotos)
+- Modal fullscreen com navegação por teclado (← →, Esc)
+- Download e cópia de URL pública
+- Lazy loading, dark mode, responsivo
+
+Galeria de imagens privada com proteção por código de acesso.
 Hospedada no Netlify, sem backend, sem banco de dados.
 
 ---
