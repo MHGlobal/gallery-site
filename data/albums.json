@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Casamento",
+    "folder": "casamento",
+    "cover": "foto1.jpg",
+    "images": [
+      "foto1.jpg",
+      "foto2.jpg",
+      "foto3.jpg"
+    ]
+  },
+  {
+    "name": "Evento Corporativo",
+    "folder": "evento",
+    "cover": "evento1.jpg",
+    "images": [
+      "evento1.jpg",
+      "evento2.jpg"
+    ]
+  },
+  {
+    "name": "Viagem",
+    "folder": "viagem",
+    "cover": "viagem1.jpg",
+    "images": [
+      "viagem1.jpg",
+      "viagem2.jpg",
+      "viagem3.jpg",
+      "viagem4.jpg"
+    ]
+  }
+]

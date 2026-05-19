@@ -1,0 +1,3 @@
+Este arquivo é um placeholder.
+Substitua as imagens nesta pasta pelos seus arquivos .jpg, .png ou .webp reais.
+Depois atualize o arquivo data/albums.json com os nomes corretos.

@@ -1,0 +1,39 @@
+# netlify.toml — Configuração do Netlify
+
+[build]
+  publish = "/"
+
+# Redireciona todas as rotas para index.html (SPA fallback)
+# Necessário caso você adicione rotas no futuro
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  conditions = {Role = ["admin"]}
+
+# Headers globais de segurança e CORS
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Permite que URLs de imagens sejam usadas em outros projetos
+    Access-Control-Allow-Origin = "*"
+
+    # Segurança básica
+    X-Frame-Options           = "SAMEORIGIN"
+    X-Content-Type-Options    = "nosniff"
+    Referrer-Policy           = "strict-origin-when-cross-origin"
+
+    # Cache: HTML sem cache para sempre buscar versão atualizada
+    Cache-Control             = "public, max-age=0, must-revalidate"
+
+# Cache longo para imagens (muda apenas se o nome do arquivo mudar)
+[[headers]]
+  for = "/albums/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache longo para assets estáticos
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
