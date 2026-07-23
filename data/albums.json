@@ -1,32 +1,19 @@
 [
   {
-    "name": "Casamento",
-    "folder": "casamento",
-    "cover": "foto1.jpg",
+    "name": "Imagem",
+    "folder": "imagem",
+    "cover": "Imagem1.jpeg",
     "images": [
-      "foto1.jpg",
-      "foto2.jpg",
-      "foto3.jpg"
-    ]
-  },
-  {
-    "name": "Evento Corporativo",
-    "folder": "evento",
-    "cover": "evento1.jpg",
-    "images": [
-      "evento1.jpg",
-      "evento2.jpg"
-    ]
-  },
-  {
-    "name": "Viagem",
-    "folder": "viagem",
-    "cover": "viagem1.jpg",
-    "images": [
-      "viagem1.jpg",
-      "viagem2.jpg",
-      "viagem3.jpg",
-      "viagem4.jpg"
+      "Imagem1.jpeg",
+      "Imagem2.jpeg",
+      "LOGO BRANCO COMPLETO.png",
+      "LOGOLINK.png",
+      "LOgo-com-slogan.png",
+      "M&H-globals logo-sem-slogan.png",
+      "aviao web.png",
+      "clouds.jpg",
+      "linkimagem.png",
+      "marbarco.avif"
     ]
   }
 ]

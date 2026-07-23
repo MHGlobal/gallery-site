@@ -1,306 +1,3 @@
-cat > /home/claude/gallery-site/script.js << 'ENDOFFILE'
-/**
- * script.js — Lógica principal da galeria de imagens
- *
- * Como funciona o auto-scan:
- * 1. Você faz push de imagens para /albums/nome-do-album/
- * 2. O GitHub Actions (.github/workflows/update-albums.yml) gera
- *    data/albums.json automaticamente
- * 3. Netlify faz deploy com o JSON atualizado
- * 4. Galeria carrega e exibe tudo — sem editar nenhum arquivo manualmente
- */
-
-// ── Estado global ─────────────────────────────────────────────
-let allAlbums = [];
-let currentAlbum = null;
-let currentImageIndex = 0;
-
-// ── Carregamento dos álbuns ───────────────────────────────────
-
-async function initGallery() {
-  try {
-    showHomeLoading(true);
-
-    // Cache-bust: garante versão mais recente após cada deploy
-    const res = await fetch("data/albums.json?v=" + Date.now());
-    if (!res.ok) throw new Error("HTTP " + res.status);
-
-    allAlbums = await res.json();
-    if (!Array.isArray(allAlbums)) throw new Error("JSON inválido");
-
-    renderHomeView(allAlbums);
-    attachSearchListeners();
-
-  } catch (err) {
-    console.error("[gallery] Erro ao carregar albums.json:", err);
-    showHomeError(
-      "Não foi possível carregar os álbuns. " +
-      "Verifique se o arquivo data/albums.json existe no repositório."
-    );
-  } finally {
-    showHomeLoading(false);
-  }
-}
-
-// ── Home: lista de álbuns ─────────────────────────────────────
-
-function renderHomeView(albums) {
-  const view      = document.getElementById("home-view");
-  const albumView = document.getElementById("album-view");
-  albumView.style.display = "none";
-  view.style.display      = "block";
-
-  const grid  = document.getElementById("albums-grid");
-  const empty = document.getElementById("empty-state");
-
-  if (!albums.length) {
-    grid.innerHTML      = "";
-    empty.style.display = "flex";
-    return;
-  }
-
-  empty.style.display = "none";
-  grid.innerHTML = albums.map((album, i) => buildAlbumCard(album, i)).join("");
-  observeImages();
-}
-
-function buildAlbumCard(album, index) {
-  const count = album.images ? album.images.length : 0;
-  const label = count === 1 ? "1 foto" : count + " fotos";
-  const cover = album.cover
-    ? "albums/" + album.folder + "/" + album.cover
-    : "assets/placeholder.svg";
-
-  return (
-    '<div class="album-card" style="animation-delay:' + index * 60 + 'ms" onclick="openAlbum(\'' + album.folder + '\')">' +
-      '<div class="album-thumb">' +
-        '<img data-src="' + cover + '" src="assets/placeholder.svg" alt="' + album.name + '" loading="lazy" onerror="this.src=\'assets/placeholder.svg\'" />' +
-        '<div class="album-overlay"><span class="album-open-icon">↗</span></div>' +
-      '</div>' +
-      '<div class="album-info">' +
-        '<h3 class="album-name">' + album.name + '</h3>' +
-        '<span class="album-count">' + label + '</span>' +
-      '</div>' +
-    '</div>'
-  );
-}
-
-// ── Álbum: grid de fotos ──────────────────────────────────────
-
-function openAlbum(folder) {
-  currentAlbum = allAlbums.find(function(a) { return a.folder === folder; });
-  if (!currentAlbum) return;
-
-  document.getElementById("home-view").style.display  = "none";
-  document.getElementById("album-view").style.display = "block";
-  document.getElementById("album-title").textContent  = currentAlbum.name;
-
-  const images = currentAlbum.images || [];
-  const grid   = document.getElementById("album-grid");
-
-  if (!images.length) {
-    grid.innerHTML = '<p class="no-images">Nenhuma imagem encontrada neste álbum.</p>';
-    return;
-  }
-
-  grid.innerHTML = images.map(function(img, i) {
-    return buildImageCard(img, i, folder);
-  }).join("");
-
-  observeImages();
-  document.getElementById("album-view").scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-function buildImageCard(filename, index, folder) {
-  const src = "albums/" + folder + "/" + filename;
-  return (
-    '<div class="image-card" onclick="openModal(' + index + ')">' +
-      '<img data-src="' + src + '" src="assets/placeholder.svg" alt="' + filename + '" loading="lazy" onerror="this.src=\'assets/placeholder.svg\'" />' +
-      '<div class="image-hover-overlay"><span class="zoom-icon">⊕</span></div>' +
-    '</div>'
-  );
-}
-
-function goHome() {
-  document.getElementById("album-view").style.display = "none";
-  document.getElementById("home-view").style.display  = "block";
-  currentAlbum = null;
-}
-
-// ── Modal fullscreen ──────────────────────────────────────────
-
-function openModal(index) {
-  if (!currentAlbum) return;
-  var images = currentAlbum.images || [];
-  if (!images.length) return;
-
-  currentImageIndex = index;
-  renderModal(images[index]);
-
-  document.getElementById("image-modal").style.display = "flex";
-  document.body.style.overflow = "hidden";
-}
-
-function renderModal(filename) {
-  var folder    = currentAlbum.folder;
-  var src       = "albums/" + folder + "/" + filename;
-  var publicUrl = location.origin + "/albums/" + folder + "/" + filename;
-  var images    = currentAlbum.images || [];
-
-  document.getElementById("modal-image").src          = src;
-  document.getElementById("modal-image").alt          = filename;
-  document.getElementById("modal-filename").textContent = filename;
-  document.getElementById("modal-download").href      = src;
-  document.getElementById("modal-download").download  = filename;
-  document.getElementById("modal-copy-btn").dataset.url = publicUrl;
-
-  document.getElementById("modal-prev").style.visibility =
-    currentImageIndex > 0 ? "visible" : "hidden";
-  document.getElementById("modal-next").style.visibility =
-    currentImageIndex < images.length - 1 ? "visible" : "hidden";
-
-  resetCopyFeedback();
-}
-
-function closeModal() {
-  document.getElementById("image-modal").style.display = "none";
-  document.body.style.overflow = "";
-  resetCopyFeedback();
-}
-
-function navigateModal(direction) {
-  var images = currentAlbum ? currentAlbum.images || [] : [];
-  var next   = currentImageIndex + direction;
-  if (next < 0 || next >= images.length) return;
-  currentImageIndex = next;
-  renderModal(images[next]);
-}
-
-function copyImageUrl() {
-  var btn = document.getElementById("modal-copy-btn");
-  var url = btn.dataset.url;
-
-  function onCopied() {
-    btn.textContent = "✓ Copiado!";
-    btn.classList.add("copied");
-    setTimeout(resetCopyFeedback, 2000);
-  }
-
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(url).then(onCopied).catch(function() {
-      legacyCopy(url, onCopied);
-    });
-  } else {
-    legacyCopy(url, onCopied);
-  }
-}
-
-function legacyCopy(text, cb) {
-  var ta = document.createElement("textarea");
-  ta.value = text;
-  ta.style.position = "fixed";
-  ta.style.opacity  = "0";
-  document.body.appendChild(ta);
-  ta.focus();
-  ta.select();
-  try { document.execCommand("copy"); cb(); } catch(e) {}
-  document.body.removeChild(ta);
-}
-
-function resetCopyFeedback() {
-  var btn = document.getElementById("modal-copy-btn");
-  if (btn) {
-    btn.textContent = "Copiar URL";
-    btn.classList.remove("copied");
-  }
-}
-
-// ── Pesquisa e filtros ────────────────────────────────────────
-
-function attachSearchListeners() {
-  var searchInput  = document.getElementById("search-input");
-  var filterSelect = document.getElementById("filter-select");
-  if (searchInput)  searchInput.addEventListener("input",  applyFilters);
-  if (filterSelect) filterSelect.addEventListener("change", applyFilters);
-}
-
-function applyFilters() {
-  var query = (document.getElementById("search-input")?.value || "").toLowerCase().trim();
-  var sort  = document.getElementById("filter-select")?.value || "name";
-
-  var filtered = allAlbums.filter(function(a) {
-    return a.name.toLowerCase().includes(query);
-  });
-
-  if (sort === "name") {
-    filtered.sort(function(a, b) { return a.name.localeCompare(b.name); });
-  } else if (sort === "recent") {
-    filtered.sort(function(a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
-  } else if (sort === "count") {
-    filtered.sort(function(a, b) { return (b.images?.length || 0) - (a.images?.length || 0); });
-  }
-
-  renderHomeView(filtered);
-}
-
-// ── Lazy loading ──────────────────────────────────────────────
-
-function observeImages() {
-  var lazyImgs = document.querySelectorAll("img[data-src]");
-
-  if ("IntersectionObserver" in window) {
-    var observer = new IntersectionObserver(function(entries) {
-      entries.forEach(function(entry) {
-        if (entry.isIntersecting) {
-          var img = entry.target;
-          img.src = img.dataset.src;
-          img.removeAttribute("data-src");
-          observer.unobserve(img);
-        }
-      });
-    }, { rootMargin: "200px" });
-
-    lazyImgs.forEach(function(img) { observer.observe(img); });
-  } else {
-    lazyImgs.forEach(function(img) {
-      img.src = img.dataset.src;
-      img.removeAttribute("data-src");
-    });
-  }
-}
-
-// ── UI helpers ────────────────────────────────────────────────
-
-function showHomeLoading(show) {
-  var el = document.getElementById("loading-state");
-  if (el) el.style.display = show ? "flex" : "none";
-}
-
-function showHomeError(msg) {
-  var el = document.getElementById("error-state");
-  if (el) { el.textContent = msg; el.style.display = "block"; }
-}
-
-// ── Teclado e backdrop ────────────────────────────────────────
-
-document.addEventListener("keydown", function(e) {
-  var modal = document.getElementById("image-modal");
-  if (!modal || modal.style.display === "none") return;
-  if (e.key === "Escape")      closeModal();
-  if (e.key === "ArrowLeft")   navigateModal(-1);
-  if (e.key === "ArrowRight")  navigateModal(1);
-});
-
-document.addEventListener("click", function(e) {
-  var modal = document.getElementById("image-modal");
-  if (e.target === modal) closeModal();
-});
-ENDOFFILE
-
-
-
-
-
 /**
  * script.js — Lógica principal da galeria de imagens
  *
@@ -325,6 +22,11 @@ let allAlbums = [];
 let currentAlbum = null;
 let currentImageIndex = 0;
 
+function encodePathSegment(value) {
+  return encodeURIComponent(value).replace(/%2F/g, "/");
+}
+
+
 // ── Carregamento dos álbuns ───────────────────────────────────
 
 /**
@@ -335,7 +37,7 @@ async function initGallery() {
   try {
     showHomeLoading(true);
 
-    const res = await fetch(ALBUMS_API);
+    const res = await fetch(`${ALBUMS_API}?v=${Date.now()}`);
 
     if (!res.ok) {
       // Se a função não existe (ex: dev local sem Netlify CLI),
@@ -408,7 +110,7 @@ function renderHomeView(albums) {
 }
 
 function buildAlbumCard(album, index) {
-  const coverSrc = `albums/${album.folder}/${album.cover}`;
+  const coverSrc = `albums/${encodePathSegment(album.folder)}/${encodePathSegment(album.cover)}`;
   const count = album.images ? album.images.length : 0;
   const label = count === 1 ? "1 foto" : `${count} fotos`;
 
@@ -468,7 +170,7 @@ function openAlbum(folder) {
 }
 
 function buildImageCard(filename, index, folder) {
-  const src = `albums/${folder}/${filename}`;
+  const src = `albums/${encodePathSegment(folder)}/${encodePathSegment(filename)}`;
   return `
     <div class="image-card" onclick="openModal(${index})">
       <img
@@ -509,8 +211,8 @@ function openModal(index) {
 
 function renderModal(filename) {
   const folder = currentAlbum.folder;
-  const src = `albums/${folder}/${filename}`;
-  const publicUrl = `${location.origin}/albums/${folder}/${filename}`;
+  const src = `albums/${encodePathSegment(folder)}/${encodePathSegment(filename)}`;
+  const publicUrl = `${location.origin}/albums/${encodePathSegment(folder)}/${encodePathSegment(filename)}`;
 
   document.getElementById("modal-image").src = src;
   document.getElementById("modal-image").alt = filename;

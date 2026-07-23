@@ -57,40 +57,56 @@ function readAlbumImages(folderPath) {
  * Cada subpasta é um álbum. Pastas sem imagens são incluídas mas ficam vazias.
  * @returns {object[]}
  */
+function formatAlbumName(relativeDir) {
+  return relativeDir
+    .split(path.sep)
+    .join(" ")
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function collectAlbumDirs(baseDir, currentDir = baseDir) {
+  const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+  const imagesInCurrent = entries
+    .filter((entry) => entry.isFile() && isImage(entry.name))
+    .map((entry) => entry.name);
+
+  let albumDirs = [];
+  if (imagesInCurrent.length > 0) {
+    albumDirs.push(currentDir);
+  }
+
+  entries
+    .filter((entry) => entry.isDirectory())
+    .forEach((entry) => {
+      albumDirs = albumDirs.concat(collectAlbumDirs(baseDir, path.join(currentDir, entry.name)));
+    });
+
+  return albumDirs;
+}
+
 function scanAlbums() {
   if (!fs.existsSync(ALBUMS_DIR)) {
     return [];
   }
 
-  const entries = fs.readdirSync(ALBUMS_DIR, { withFileTypes: true });
-
-  return entries
-    .filter((e) => e.isDirectory())
-    .map((dir) => {
-      const folderPath = path.join(ALBUMS_DIR, dir.name);
-      const images     = readAlbumImages(folderPath);
-      const cover      = images[0] || null;
-
-      // Usa o nome da pasta como nome do álbum,
-      // convertendo hifens/underscores em espaços e capitalizando
-      const name = dir.name
-        .replace(/[-_]/g, " ")
-        .replace(/\b\w/g, (c) => c.toUpperCase());
-
-      // Data de modificação da pasta (para ordenar por recentes)
+  return collectAlbumDirs(ALBUMS_DIR)
+    .map((folderPath) => {
+      const relativeFolder = path.relative(ALBUMS_DIR, folderPath);
+      const images = readAlbumImages(folderPath);
+      const cover = images[0] || null;
       const mtime = fs.statSync(folderPath).mtimeMs;
 
       return {
-        name,
-        folder: dir.name,
+        name: formatAlbumName(relativeFolder),
+        folder: relativeFolder.split(path.sep).join("/"),
         cover,
         images,
         count: images.length,
         updatedAt: mtime,
       };
     })
-    .filter((album) => album.images.length > 0) // oculta pastas sem imagens
-    .sort((a, b) => b.updatedAt - a.updatedAt);  // mais recentes primeiro
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 // ── Handler principal ─────────────────────────────────────────
